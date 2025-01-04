@@ -4,6 +4,7 @@ from app.models.profile import Profile
 from app.models.user import User
 from app import db
 from app.models.console import PlayStation, Xbox, Steam, Nintendo, Discord
+from app.models.friendship import Friendship
 
 bp = Blueprint('profile', __name__, url_prefix='/api/profile')
 
@@ -19,6 +20,37 @@ def get_profile():
         current_app.logger.error(f'Profile not found for user_id: {user_id}')
         return jsonify({"error": "Profile not found"}), 404
     
+    # Users I'm following (I added them)
+    following = Friendship.query.filter_by(
+        user_id=user_id, 
+        status='accepted'
+    ).all()
+    
+    # Users following me (they added me)
+    followers = Friendship.query.filter_by(
+        friend_id=user_id, 
+        status='accepted'
+    ).all()
+    
+    # Convert to lists of user details
+    following_list = []
+    for friend in following:
+        friend_user = User.query.get(friend.friend_id)
+        if friend_user:
+            following_list.append({
+                "user_id": friend_user.id,
+                "username": friend_user.username
+            })
+    
+    followers_list = []
+    for friend in followers:
+        friend_user = User.query.get(friend.user_id)
+        if friend_user:
+            followers_list.append({
+                "user_id": friend_user.id,
+                "username": friend_user.username
+            })
+    
     discord = Discord.query.filter_by(user_id=user_id).first()
     
     # Get console information
@@ -32,6 +64,8 @@ def get_profile():
         "discord": discord.discord_username if discord else None,
         "links": profile.links,
         "games": profile.games,
+        "following": following_list,
+        "followers": followers_list,
         "consoles": {
             "playstation": {"psn_username": ps.psn_username} if ps else None,
             "xbox": {"xbox_gamertag": xbox.xbox_gamertag} if xbox else None,

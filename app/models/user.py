@@ -17,6 +17,9 @@ class User(db.Model):
     # Relationship with Profile
     profile = db.relationship('Profile', backref='user', uselist=False)
     
+    # Add this line to establish the two-way relationship
+    media = db.relationship('Media', back_populates='user')
+    
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     

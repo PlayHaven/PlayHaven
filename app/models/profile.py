@@ -8,4 +8,4 @@ class Profile(db.Model):
     games = db.Column(db.JSON)  # Store games as JSON
     
     # Relationship with Media
-    media = db.relationship('Media', backref='profile', lazy='dynamic') 
+    # media = db.relationship('Media', backref='profile', lazy='dynamic') 

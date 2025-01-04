@@ -1,5 +1,5 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask import Blueprint, request, jsonify, current_app
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt, set_access_cookies, get_csrf_token, unset_jwt_cookies
 from app.models.user import User
 from app.models.profile import Profile
 from app import db
@@ -41,7 +41,29 @@ def register():
     db.session.add(profile)
     db.session.commit()
     
-    return jsonify({"message": "User created successfully"}), 201
+    # Create access token
+    access_token = create_access_token(identity=str(user.id))
+    
+    # Create response
+    response = jsonify({
+        "message": "User created successfully",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username
+        }
+    })
+    
+    # Set JWT cookie and CSRF token
+    set_access_cookies(response, access_token)
+    response.set_cookie(
+        'csrf_token',
+        get_csrf_token(access_token),
+        httponly=False,
+        samesite='Strict'
+    )
+    
+    return response, 201
 
 @bp.route('/login', methods=['POST'])
 def login():
@@ -49,8 +71,29 @@ def login():
     user = User.query.filter_by(email=data['email']).first()
     
     if user and user.check_password(data['password']):
+        # Create access token
         access_token = create_access_token(identity=str(user.id))
-        return jsonify({"token": access_token}), 200
+        
+        # Create response
+        response = jsonify({
+            "message": "Login successful",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "username": user.username
+            }
+        })
+        
+        # Set JWT cookie and CSRF token
+        set_access_cookies(response, access_token)
+        response.set_cookie(
+            'csrf_token',
+            get_csrf_token(access_token),
+            httponly=False,  # Frontend needs to read this
+            samesite='Strict'
+        )
+        
+        return response, 200
         
     return jsonify({"error": "Invalid credentials"}), 401
 
@@ -90,3 +133,65 @@ def delete_account():
     db.session.commit()
     
     return jsonify({"message": "Account deleted successfully"}), 200
+
+@bp.route('/verify', methods=['GET'])
+def verify_token():
+    try:
+        # Verify the token
+        verify_jwt_in_request()
+        jwt = get_jwt()
+        
+        # Get expiration time
+        exp_timestamp = jwt["exp"]
+        
+        # Get user details
+        user = User.query.get(jwt["sub"])
+        if not user:
+            raise Exception("User not found")
+        
+        # Create a new access token to generate a fresh CSRF token
+        access_token = create_access_token(identity=jwt["sub"])
+        
+        # Create response
+        response = jsonify({
+            "valid": True,
+            "expires_at": exp_timestamp,
+            "user_id": jwt["sub"],
+            "username": user.username,
+            "email": user.email
+        })
+        
+        # Set new CSRF token
+        response.set_cookie(
+            'csrf_token',
+            get_csrf_token(access_token),
+            httponly=False,
+            samesite='Strict'
+        )
+        
+        return response, 200
+        
+    except Exception as e:
+        current_app.logger.warning(f'Token verification failed: {str(e)}')
+        return jsonify({
+            "valid": False,
+            "error": "Invalid or expired token"
+        }), 401
+
+@bp.route('/logout', methods=['POST'])
+def logout():
+    response = jsonify({"message": "Successfully logged out"})
+    
+    # Remove JWT cookies
+    unset_jwt_cookies(response)
+    
+    # Remove CSRF token by setting it to expire immediately
+    response.set_cookie(
+        'csrf_token',
+        '',  # empty value
+        expires=0,  # expire immediately
+        httponly=False,
+        samesite='Strict'
+    )
+    
+    return response, 200

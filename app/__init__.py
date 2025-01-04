@@ -2,6 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
+from flask_cors import CORS
 import logging
 from .config import Config
 
@@ -12,6 +13,17 @@ jwt = JWTManager()
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    
+    # Updated CORS configuration
+    CORS(app, 
+         resources={r"/api/*": {
+             "origins": ["http://localhost:3000"],
+             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization", "X-CSRF-TOKEN"],
+             "expose_headers": ["Content-Type", "X-CSRF-TOKEN"]
+         }},
+         supports_credentials=True
+    )
 
     # Configure logging
     app.logger.setLevel(logging.DEBUG)
