@@ -5,10 +5,13 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 import logging
 from .config import Config
+from flask_socketio import SocketIO, emit
+from flask import current_app
 
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
+socketio = SocketIO(cors_allowed_origins="*")
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -38,6 +41,7 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+    socketio.init_app(app)
 
     # Import models to register them with SQLAlchemy
     from .models.user import User

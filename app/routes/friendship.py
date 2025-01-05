@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.friendship import Friendship
 from app import db
 from app.models.user import User
+from app.routes.notifications import send_notification
 
 bp = Blueprint('friendship', __name__, url_prefix='/api/friends')
 
@@ -13,6 +14,11 @@ def send_friend_request():
     friend_username = request.json.get('username')
     
     current_app.logger.debug(f'Sending friend request from user_id: {user_id} to username: {friend_username}')
+
+    # Get my user info
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
     
     # Find friend by username
     friend = User.query.filter_by(username=friend_username).first()
@@ -35,6 +41,10 @@ def send_friend_request():
     db.session.commit()
     
     current_app.logger.debug(f'Friend request sent successfully to {friend_username}')
+    send_notification(friend.id, 'friend_request', {
+        'sender_id': user_id,
+        'sender_username': user.username
+    })
     return jsonify({"message": "Friend request sent"}), 201
 
 @bp.route('/accept', methods=['POST'])
