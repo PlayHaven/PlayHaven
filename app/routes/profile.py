@@ -205,6 +205,10 @@ def update_discord():
     user_id = get_jwt_identity()
     data = request.get_json()
     discord = Discord.query.filter_by(user_id=user_id).first()
+    if not discord:
+        discord = Discord(user_id=user_id)
+        db.session.add(discord)
     discord.discord_username = data.get('discord_username', discord.discord_username)
     db.session.commit()
     return jsonify({"message": "Discord info updated successfully"})
+

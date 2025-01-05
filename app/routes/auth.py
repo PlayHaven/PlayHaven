@@ -162,6 +162,7 @@ def verify_token():
         })
         
         # Set new CSRF token
+        set_access_cookies(response, access_token)
         response.set_cookie(
             'csrf_token',
             get_csrf_token(access_token),
