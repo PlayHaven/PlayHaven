@@ -212,3 +212,85 @@ def update_discord():
     db.session.commit()
     return jsonify({"message": "Discord info updated successfully"})
 
+@bp.route('/@<string:username>', methods=['GET'])
+@jwt_required()
+def get_other_profile(username):
+    current_user_id = get_jwt_identity()
+    current_app.logger.debug(f'Getting profile for username: {username}')
+    
+    # Check if target user exists
+    target_user = User.query.filter_by(username=username).first()
+    if not target_user:
+        return jsonify({"error": "User not found"}), 404
+    
+    target_user_id = target_user.id
+    profile = Profile.query.filter_by(user_id=target_user_id).first()
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+    
+    # Get friendship status
+    friendship = Friendship.query.filter(
+        ((Friendship.user_id == current_user_id) & (Friendship.friend_id == target_user_id)) |
+        ((Friendship.user_id == target_user_id) & (Friendship.friend_id == current_user_id))
+    ).first()
+    
+    # Determine friend_request_from if status is pending
+    friend_request_from = friendship.user_id if friendship and friendship.status == 'pending' else None
+    
+    # Users they're following
+    following = Friendship.query.filter_by(
+        user_id=target_user_id, 
+        status='accepted'
+    ).all()
+    
+    # Users following them
+    followers = Friendship.query.filter_by(
+        friend_id=target_user_id, 
+        status='accepted'
+    ).all()
+    
+    # Convert to lists of user details
+    following_list = []
+    for friend in following:
+        friend_user = User.query.get(friend.friend_id)
+        if friend_user:
+            following_list.append({
+                "user_id": friend_user.id,
+                "username": friend_user.username
+            })
+    
+    followers_list = []
+    for friend in followers:
+        friend_user = User.query.get(friend.user_id)
+        if friend_user:
+            followers_list.append({
+                "user_id": friend_user.id,
+                "username": friend_user.username
+            })
+    
+    # Get console information
+    discord = Discord.query.filter_by(user_id=target_user_id).first()
+    ps = PlayStation.query.filter_by(user_id=target_user_id).first()
+    xbox = Xbox.query.filter_by(user_id=target_user_id).first()
+    steam = Steam.query.filter_by(user_id=target_user_id).first()
+    nintendo = Nintendo.query.filter_by(user_id=target_user_id).first()
+    
+    return jsonify({
+        "user_id": target_user_id,
+        "username": target_user.username,
+        "bio": profile.bio,
+        "discord": discord.discord_username if discord else None,
+        "links": profile.links,
+        "games": profile.games,
+        "following": following_list,
+        "followers": followers_list,
+        "friendship_status": friendship.status if friendship else None,
+        "friend_request_from": friend_request_from,
+        "consoles": {
+            "playstation": {"psn_username": ps.psn_username} if ps else None,
+            "xbox": {"xbox_gamertag": xbox.xbox_gamertag} if xbox else None,
+            "steam": {"steam_username": steam.steam_username} if steam else None,
+            "nintendo": {"friend_code": nintendo.friend_code} if nintendo else None
+        }
+    })
+
