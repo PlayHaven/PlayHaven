@@ -49,11 +49,15 @@ def create_app(config_class=Config):
     from .models.media import Media
     from .models.friendship import Friendship
     from .models.console import PlayStation, Xbox, Steam, Nintendo, Discord
+    from .models.notification import Notification
+    from .models.chat import ChatMessage, ChatRoom
 
-    from .routes import auth, profile, media, friendship
+    from .routes import auth, profile, media, friendship, chat, notifications
     app.register_blueprint(auth.bp)
     app.register_blueprint(profile.bp)
     app.register_blueprint(media.bp)
     app.register_blueprint(friendship.bp)
+    app.register_blueprint(chat.bp)
+    app.register_blueprint(notifications.bp)
 
     return app

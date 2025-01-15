@@ -4,6 +4,7 @@ from app.models.friendship import Friendship
 from app import db
 from app.models.user import User
 from app.routes.notifications import send_notification
+from app.models.notification import Notification
 
 bp = Blueprint('friendship', __name__, url_prefix='/api/friends')
 
@@ -41,7 +42,7 @@ def send_friend_request():
     db.session.commit()
     
     current_app.logger.debug(f'Friend request sent successfully to {friend_username}')
-    send_notification(friend.id, 'friend_request', {
+    send_notification(friend.id, Notification.FRIEND_REQUEST, {
         'sender_id': user_id,
         'sender_username': user.username
     })
@@ -76,10 +77,85 @@ def accept_friend_request():
     )
     
     db.session.add(reciprocal_friendship)
+    
+    # Delete the notification associated with the request
+    notification_to_delete = Notification.query.filter_by(
+        user_id=friendship.friend_id,  # The user who sent the request
+        notification_type=Notification.FRIEND_REQUEST  # The sender of the friend request
+    )
+
+    notif = None
+
+    for notification in notification_to_delete:
+        if str(friendship.user_id) == notification.data['sender_id']:
+            notif = notification
+    
+    if notif:
+        db.session.delete(notif)
+    
+    # Send notification to the requester
+    send_notification(friendship.user_id, Notification.FRIEND_REQUEST_ACCEPTED, {
+        'receiver_id': user_id,
+        'receiver_username': User.query.get(user_id).username
+    })
+    
+    # Save the new notification for the user who accepted the request
+    send_notification(user_id, Notification.FRIEND_REQUEST_ACCEPTED, {
+        'sender_id': friendship.user_id,
+        'sender_username': User.query.get(friendship.user_id).username
+    })
+    
     db.session.commit()
     
     current_app.logger.debug(f'Friend request {request_id} accepted and reciprocal friendship created')
     return jsonify({"message": "Friend request accepted"})
+
+@bp.route('/reject', methods=['DELETE'])
+@jwt_required()
+def reject_friend_request():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    request_id = data.get('request_id')
+    
+    if not request_id:
+        return jsonify({"error": "request_id is required"}), 400
+    
+    current_app.logger.debug(f'Rejecting friend request {request_id} by user {user_id}')
+    
+    friendship = Friendship.query.get_or_404(request_id)
+    
+    # Verify the user is the recipient of the request
+    if str(friendship.friend_id) != str(user_id):
+        current_app.logger.warning(f'Unauthorized rejection attempt by user {user_id} for request {request_id}')
+        return jsonify({"error": "Not authorized"}), 403
+    
+    # Find and delete the notification associated with the request
+    notification_to_delete = Notification.query.filter_by(
+        user_id=friendship.friend_id,  # The user who sent the request
+        notification_type=Notification.FRIEND_REQUEST  # The sender of the friend request
+    )
+
+    notif = None
+
+    for notification in notification_to_delete:
+        if str(friendship.user_id) == notification.data['sender_id']:
+            notif = notification
+    
+    if notif:
+        db.session.delete(notif)
+    
+    # Send notification to the requester
+    # send_notification(friendship.user_id, Notification.FRIEND_REQUEST_REJECTED, {
+    #     'receiver_id': user_id,
+    #     'receiver_username': User.query.get(user_id).username
+    # })
+    
+    # Delete the friendship request
+    db.session.delete(friendship)
+    db.session.commit()
+    
+    current_app.logger.debug(f'Friend request {request_id} deleted successfully')
+    return jsonify({"message": "Friend request rejected and deleted"}) 
 
 @bp.route('/', methods=['GET'])
 @jwt_required()
@@ -147,29 +223,3 @@ def get_pending_requests():
         "pending_requests": requests_list,
         "total": len(requests_list)
     }) 
-
-@bp.route('/reject', methods=['DELETE'])
-@jwt_required()
-def reject_friend_request():
-    user_id = get_jwt_identity()
-    data = request.get_json()
-    request_id = data.get('request_id')
-    
-    if not request_id:
-        return jsonify({"error": "request_id is required"}), 400
-    
-    current_app.logger.debug(f'Rejecting friend request {request_id} by user {user_id}')
-    
-    friendship = Friendship.query.get_or_404(request_id)
-    
-    # Verify the user is the recipient of the request
-    if str(friendship.friend_id) != str(user_id):
-        current_app.logger.warning(f'Unauthorized rejection attempt by user {user_id} for request {request_id}')
-        return jsonify({"error": "Not authorized"}), 403
-    
-    # Delete the friendship request
-    db.session.delete(friendship)
-    db.session.commit()
-    
-    current_app.logger.debug(f'Friend request {request_id} deleted successfully')
-    return jsonify({"message": "Friend request rejected and deleted"}) 

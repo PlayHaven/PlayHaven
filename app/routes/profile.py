@@ -5,6 +5,7 @@ from app.models.user import User
 from app import db
 from app.models.console import PlayStation, Xbox, Steam, Nintendo, Discord
 from app.models.friendship import Friendship
+from sqlalchemy import or_
 
 bp = Blueprint('profile', __name__, url_prefix='/api/profile')
 
@@ -285,6 +286,7 @@ def get_other_profile(username):
         "following": following_list,
         "followers": followers_list,
         "friendship_status": friendship.status if friendship else None,
+        "friendship_id": friendship.id if friendship and friendship.status == 'pending' else None,
         "friend_request_from": friend_request_from,
         "consoles": {
             "playstation": {"psn_username": ps.psn_username} if ps else None,
@@ -293,4 +295,30 @@ def get_other_profile(username):
             "nintendo": {"friend_code": nintendo.friend_code} if nintendo else None
         }
     })
+
+@bp.route('/search', methods=['GET'])
+@jwt_required()
+def search_profiles():
+    search_query = request.args.get('query', '')
+    
+    if not search_query or len(search_query) < 1:
+        return jsonify({"error": "Search query must not be empty"}), 400
+        
+    # Get current user to exclude from results
+    current_user_id = get_jwt_identity()
+    
+    # Search for users where username contains the search query
+    users = User.query.filter(
+        User.id != current_user_id,  # Exclude current user
+        User.username.ilike(f'%{search_query}%')  # Case-insensitive search
+    ).limit(10).all()  # Limit results to 10 users
+    
+    results = [{
+        "user_id": user.id,
+        "username": user.username
+    } for user in users]
+    
+    return jsonify({
+        "results": results
+    }), 200
 
