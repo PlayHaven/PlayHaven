@@ -6,7 +6,7 @@ from flask_cors import CORS
 import logging
 from .config import Config
 from flask_socketio import SocketIO, emit
-from flask import current_app
+from flask import current_app, jsonify
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -59,5 +59,13 @@ def create_app(config_class=Config):
     app.register_blueprint(friendship.bp)
     app.register_blueprint(chat.bp)
     app.register_blueprint(notifications.bp)
+
+    @app.errorhandler(Exception)
+    def handle_error(error):
+        app.logger.error(f'Unhandled error: {error}')
+        return jsonify({
+            "error": "Internal server error",
+            "message": str(error)
+        }), 500
 
     return app
