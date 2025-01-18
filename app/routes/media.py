@@ -4,6 +4,7 @@ from app.models.media import Media, Comment
 from app.models.user import User
 from app.models.friendship import Friendship
 from app.utils.file_handler import save_file
+from app.utils.error_handler import handle_route_errors
 from app import db
 import os
 
@@ -11,6 +12,7 @@ bp = Blueprint('media', __name__, url_prefix='/api/media')
 
 @bp.route('/upload', methods=['POST'])
 @jwt_required()
+@handle_route_errors
 def upload_media():
     user_id = get_jwt_identity()
     
@@ -92,7 +94,7 @@ def delete_media(media_id):
     db.session.commit()
     
     current_app.logger.debug(f'Media {media_id} deleted successfully')
-    return jsonify({"message": "Media deleted successfully"})
+    return jsonify({"message": "Media deleted successfully"}), 200
 
 @bp.route('/', methods=['GET'])
 @jwt_required()
@@ -253,7 +255,7 @@ def delete_comment(comment_id):
     db.session.delete(comment)
     db.session.commit()
     
-    return jsonify({"message": "Comment deleted successfully"})
+    return jsonify({"message": "Comment deleted successfully"}), 200
 
 @bp.route('/friends/feed', methods=['GET'])
 @jwt_required()

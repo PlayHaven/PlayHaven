@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import socketio, db
 from app.models.user import User
 from app.models.notification import Notification
+from app.utils.error_handler import handle_route_errors
 
 bp = Blueprint('notifications', __name__, url_prefix='/api/notifications')
 
@@ -52,6 +53,7 @@ def get_notifications():
 
 @bp.route('/read-all', methods=['PUT'])
 @jwt_required()
+@handle_route_errors
 def read_all_notifications():
     user_id = get_jwt_identity()
 

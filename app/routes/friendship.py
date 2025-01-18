@@ -5,11 +5,13 @@ from app import db
 from app.models.user import User
 from app.routes.notifications import send_notification
 from app.models.notification import Notification
+from app.utils.error_handler import handle_route_errors
 
 bp = Blueprint('friendship', __name__, url_prefix='/api/friends')
 
 @bp.route('/request', methods=['POST'])
 @jwt_required()
+@handle_route_errors
 def send_friend_request():
     user_id = get_jwt_identity()
     friend_username = request.json.get('username')
@@ -50,6 +52,7 @@ def send_friend_request():
 
 @bp.route('/accept', methods=['POST'])
 @jwt_required()
+@handle_route_errors
 def accept_friend_request():
     user_id = get_jwt_identity()
     data = request.get_json()
@@ -58,32 +61,29 @@ def accept_friend_request():
     if not request_id:
         return jsonify({"error": "request_id is required"}), 400
     
-    current_app.logger.debug(f'Accepting friend request {request_id} by user {user_id}')
-    
-    friendship = Friendship.query.get_or_404(request_id)
+    friendship = Friendship.query.get(request_id)
+    if not friendship:
+        return jsonify({"error": "Friend request not found"}), 404
     
     if str(friendship.friend_id) != str(user_id):
-        current_app.logger.warning(f'Unauthorized accept attempt by user {user_id} for request {request_id}')
-        return jsonify({"error": "Not authorized"}), 403
-        
-    # Update original request to accepted
+        return jsonify({"error": "Unauthorized"}), 403
+    
     friendship.status = 'accepted'
+    db.session.add(friendship)
     
-    # Create reciprocal friendship
-    reciprocal_friendship = Friendship(
-        user_id=friendship.friend_id,  # Original receiver is now requester
-        friend_id=friendship.user_id,  # Original requester is now receiver
-        status='accepted'  # Immediately set to accepted
+    # Create reverse friendship
+    reverse_friendship = Friendship(
+        user_id=friendship.friend_id,
+        friend_id=friendship.user_id,
+        status='accepted'
     )
+    db.session.add(reverse_friendship)
     
-    db.session.add(reciprocal_friendship)
-    
-    # Delete the notification associated with the request
+    # Delete the notification and send new ones
     notification_to_delete = Notification.query.filter_by(
-        user_id=friendship.friend_id,  # The user who sent the request
-        notification_type=Notification.FRIEND_REQUEST  # The sender of the friend request
+        user_id=friendship.friend_id,
+        notification_type=Notification.FRIEND_REQUEST
     )
-
     notif = None
 
     for notification in notification_to_delete:
@@ -93,22 +93,19 @@ def accept_friend_request():
     if notif:
         db.session.delete(notif)
     
-    # Send notification to the requester
+    # Send notifications
     send_notification(friendship.user_id, Notification.FRIEND_REQUEST_ACCEPTED, {
         'receiver_id': user_id,
         'receiver_username': User.query.get(user_id).username
     })
     
-    # Save the new notification for the user who accepted the request
     send_notification(user_id, Notification.FRIEND_REQUEST_ACCEPTED, {
         'sender_id': friendship.user_id,
         'sender_username': User.query.get(friendship.user_id).username
     })
     
     db.session.commit()
-    
-    current_app.logger.debug(f'Friend request {request_id} accepted and reciprocal friendship created')
-    return jsonify({"message": "Friend request accepted"})
+    return jsonify({"message": "Friend request accepted"}), 200
 
 @bp.route('/reject', methods=['DELETE'])
 @jwt_required()
@@ -155,7 +152,7 @@ def reject_friend_request():
     db.session.commit()
     
     current_app.logger.debug(f'Friend request {request_id} deleted successfully')
-    return jsonify({"message": "Friend request rejected and deleted"}) 
+    return jsonify({"message": "Friend request rejected and deleted"})
 
 @bp.route('/', methods=['GET'])
 @jwt_required()

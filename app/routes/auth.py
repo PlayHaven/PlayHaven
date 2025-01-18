@@ -4,6 +4,7 @@ from app.models.user import User
 from app.models.profile import Profile
 from app import db
 from app.models.console import PlayStation, Xbox, Steam, Nintendo
+from app.utils.error_handler import handle_route_errors
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -135,24 +136,20 @@ def delete_account():
     return jsonify({"message": "Account deleted successfully"}), 200
 
 @bp.route('/verify', methods=['GET'])
+@handle_route_errors
 def verify_token():
     try:
-        # Verify the token
         verify_jwt_in_request()
         jwt = get_jwt()
         
-        # Get expiration time
         exp_timestamp = jwt["exp"]
         
-        # Get user details
         user = User.query.get(jwt["sub"])
         if not user:
-            raise Exception("User not found")
+            return jsonify({"valid": False, "error": "User not found"}), 404
         
-        # Create a new access token to generate a fresh CSRF token
         access_token = create_access_token(identity=jwt["sub"])
         
-        # Create response
         response = jsonify({
             "valid": True,
             "expires_at": exp_timestamp,
@@ -161,7 +158,6 @@ def verify_token():
             "email": user.email
         })
         
-        # Set new CSRF token
         set_access_cookies(response, access_token)
         response.set_cookie(
             'csrf_token',

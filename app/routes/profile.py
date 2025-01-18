@@ -88,7 +88,7 @@ def update_bio():
     
     profile.bio = data.get('bio', profile.bio)
     db.session.commit()
-    return jsonify({"message": "Bio updated successfully"})
+    return jsonify({"message": "Bio updated successfully"}), 200
 
 @bp.route('/links', methods=['PUT'])
 @jwt_required()
@@ -103,7 +103,7 @@ def update_links():
     
     profile.links = data.get('links', profile.links)
     db.session.commit()
-    return jsonify({"message": "Links updated successfully"})
+    return jsonify({"message": "Links updated successfully"}), 200
 
 @bp.route('/games', methods=['PUT'])
 @jwt_required()
@@ -118,7 +118,7 @@ def update_games():
     
     profile.games = data.get('games', profile.games)
     db.session.commit()
-    return jsonify({"message": "Games updated successfully"})
+    return jsonify({"message": "Games updated successfully"}), 200
 
 @bp.route('/consoles', methods=['GET'])
 @jwt_required()

@@ -3,12 +3,14 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db, socketio
 from app.models.user import User
 from app.models.chat import ChatRoom, ChatMessage, UserChatAssociation
+from app.utils.error_handler import handle_route_errors
 
 bp = Blueprint('chat', __name__, url_prefix='/api/chat')
 
 # Route to create a chat room
 @bp.route('/create-room', methods=['POST'])
 @jwt_required()
+@handle_route_errors
 def create_chat_room():
     user_id = get_jwt_identity()
     data = request.json
@@ -18,21 +20,19 @@ def create_chat_room():
     user_ids = data.get('user_ids', [])
 
     if is_group:
-        # Ensure the current user is included in the group
         if user_id not in user_ids:
             user_ids.append(int(user_id))
     else:
-        # For 1-to-1 chat, ensure only two users
         if len(user_ids) != 1:
             return jsonify({"error": "For 1-to-1 chat, provide exactly one user ID."}), 400
         user_ids.append(int(user_id))
 
     current_app.logger.info(f"User IDs: {user_ids}")
 
-    # Create the chat room
     chat_room = ChatRoom(name=data.get('name'), is_group=is_group, user_ids=user_ids)
-    db.session.add(chat_room)  # Add the chat room to the session before committing
-    db.session.commit()  # Commit the session to create the ID
+    db.session.add(chat_room)
+    db.session.commit()
+    
     current_app.logger.info(f"Chat room created: {chat_room.id}")
     
     for user_id in user_ids:
@@ -40,7 +40,6 @@ def create_chat_room():
         db.session.add(user_chat_association)
 
     db.session.commit()
-
     return jsonify({"room_id": chat_room.id}), 201
 
 # Route to send a chat message
