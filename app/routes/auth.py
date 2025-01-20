@@ -160,7 +160,8 @@ def verify_token():
             "expires_at": exp_timestamp,
             "user_id": jwt["sub"],
             "username": user.username,
-            "email": user.email
+            "email": user.email,
+            "csrf_token": get_csrf_token(access_token)
         })
         
         set_access_cookies(response, access_token)
