@@ -1,49 +1,69 @@
-.PHONY: help build up down logs shell db-shell clean test
+.PHONY: help dev prod down logs shell db-shell clean test
 
 # Variables
-DC=docker-compose -f docker/docker-compose.yml
+DC_DEV=docker-compose -f docker/docker-compose.dev.yml
+DC_PROD=docker-compose -f docker/docker-compose.prod.yml
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-start: ## Start the containers
-	$(DC) build
-	$(DC) up -d
+dev: ## Start development environment
+	$(DC_DEV) build
+	$(DC_DEV) up -d
 
-stop: ## Stop the containers
-	$(DC) down
+prod: ## Start production environment
+	$(DC_PROD) build
+	$(DC_PROD) up -d
 
-logs: ## View logs
-	$(DC) logs -f
+stop: ## Stop containers
+	$(DC_DEV) down
+	$(DC_PROD) down
 
-shell: ## Open a shell in the web container
-	$(DC) exec web /bin/bash
+logs-dev: ## View development logs
+	$(DC_DEV) logs -f
+
+logs-prod: ## View production logs
+	$(DC_PROD) logs -f
+
+shell-dev: ## Open a shell in the development web container
+	$(DC_DEV) exec web /bin/bash
+
+shell-prod: ## Open a shell in the production web container
+	$(DC_PROD) exec web /bin/bash
 
 db-shell: ## Open a psql shell in the database container
-	$(DC) exec db psql -U postgres playhaven
+	$(DC_DEV) exec db psql -U postgres playhaven
 
 clean: down ## Stop containers and remove volumes
-	$(DC) down -v
+	$(DC_DEV) down -v
+	$(DC_PROD) down -v
 
 test: ## Run tests
-	$(DC) exec web python -m pytest
+	$(DC_DEV) exec web python -m pytest
 
 init-db: ## Initialize the database
-	$(DC) exec web flask db init
-	$(DC) exec web flask db migrate
-	$(DC) exec web flask db upgrade
+	$(DC_DEV) exec web flask db init
+	$(DC_DEV) exec web flask db migrate
+	$(DC_DEV) exec web flask db upgrade
 
 migrate-db: ## Migrate the database
-	$(DC) exec web flask db migrate
-	$(DC) exec web flask db upgrade
+	$(DC_DEV) exec web flask db migrate
+	$(DC_DEV) exec web flask db upgrade
 
 upgrade-db: ## Upgrade the database
-	$(DC) exec web flask db upgrade
+	$(DC_DEV) exec web flask db upgrade
 
 rollback-db: ## Rollback the database
-	$(DC) exec web flask db downgrade
+	$(DC_DEV) exec web flask db downgrade
 
-restart: down up ## Restart the containers
+restart-dev: ## Restart development containers
+	$(DC_DEV) down
+	$(DC_DEV) up -d
+
+restart-prod: ## Restart production containers
+	$(DC_PROD) down
+	$(DC_PROD) up -d
 
 status: ## Show status of containers
-	$(DC) ps 
+	$(DC_DEV) ps
+	$(DC_PROD) ps 

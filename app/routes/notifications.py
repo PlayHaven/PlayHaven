@@ -1,6 +1,6 @@
 from flask import Blueprint, request, current_app, jsonify
 from flask_socketio import emit, join_room
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from app import socketio, db
 from app.models.user import User
 from app.models.notification import Notification
@@ -9,12 +9,19 @@ from app.utils.error_handler import handle_route_errors
 bp = Blueprint('notifications', __name__, url_prefix='/api/notifications')
 
 @socketio.on('connect')
-@jwt_required()
 def handle_connect():
-    user_id = get_jwt_identity()
-    # Create a private room for this user
-    join_room(f"user_{user_id}")
-    current_app.logger.info(f"User {user_id} connected to websocket")
+    try:
+        # Get the JWT token from the request cookies
+        verify_jwt_in_request()
+        user_id = get_jwt_identity()
+        
+        # Create a private room for this user
+        join_room(f"user_{user_id}")
+        current_app.logger.info(f"User {user_id} connected to websocket")
+        return True
+    except Exception as e:
+        current_app.logger.error(f"WebSocket connection error: {str(e)}")
+        return False  # Reject the connection
 
 # Function to send notification and save it to the database
 def send_notification(user_id, notification_type, data):

@@ -52,12 +52,13 @@ def create_app(config_class=Config):
     from .models.notification import Notification
     from .models.chat import ChatMessage, ChatRoom
 
-    from .routes import auth, profile, media, friendship, chat, notifications
+    from .routes import auth, profile, media, friendship, chat, notifications, health
     app.register_blueprint(auth.bp)
     app.register_blueprint(profile.bp)
     app.register_blueprint(media.bp)
     app.register_blueprint(friendship.bp)
     app.register_blueprint(chat.bp)
     app.register_blueprint(notifications.bp)
+    app.register_blueprint(health.bp)
 
     return app
