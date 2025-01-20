@@ -7,10 +7,11 @@ services:
       dockerfile: docker/Dockerfile
     ports:
       - "10000:10000"
+    env_file:
+      - ../.env.prod
     environment:
       - FLASK_APP=run.py
       - FLASK_ENV=production
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/playhaven
     depends_on:
       - db
 
@@ -18,10 +19,8 @@ services:
     image: postgres:15
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=playhaven
+    env_file:
+      - ../.env.prod
     ports:
       - "5432:5432"
 
