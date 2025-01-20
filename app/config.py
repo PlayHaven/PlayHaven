@@ -20,4 +20,5 @@ class Config:
     JWT_CSRF_CHECK_FORM = True
     JWT_CSRF_IN_COOKIES = True
     JWT_COOKIE_SAMESITE = 'None'  # Important for cross-site cookies
-    # JWT_COOKIE_DOMAIN = '.onrender.com'  # Adjust if needed for your domain
+    if os.environ.get('FLASK_ENV') == 'production':
+        JWT_COOKIE_DOMAIN = '.onrender.com'  # Adjust if needed for your domain
