@@ -3,6 +3,7 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from app.models.user import User
 from app.models.profile import Profile
 from app import db
+from app.config import Config
 from app.models.console import PlayStation, Xbox, Steam, Nintendo
 from app.utils.error_handler import handle_route_errors
 
@@ -52,7 +53,8 @@ def register():
             "id": user.id,
             "email": user.email,
             "username": user.username
-        }
+        },
+        "csrf_token": get_csrf_token(access_token)
     })
     
     # Set JWT cookie and CSRF token
@@ -83,7 +85,8 @@ def login():
                 "id": user.id,
                 "email": user.email,
                 "username": user.username
-            }
+            },
+            "csrf_token": get_csrf_token(access_token)
         })
         
         # Set JWT cookie and CSRF token
