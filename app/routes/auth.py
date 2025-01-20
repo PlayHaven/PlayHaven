@@ -63,7 +63,7 @@ def register():
         'csrf_token',
         get_csrf_token(access_token),
         httponly=False,
-        samesite='None',
+        samesite='Lax',
         secure=True
     )
     
@@ -95,7 +95,7 @@ def login():
             'csrf_token',
             get_csrf_token(access_token),
             httponly=False,  # Frontend needs to read this
-            samesite='None',
+            samesite='Lax',
             secure=True
         )
         
@@ -169,7 +169,7 @@ def verify_token():
             'csrf_token',
             get_csrf_token(access_token),
             httponly=False,
-            samesite='None',
+            samesite='Lax',
             secure=True
         )
         
@@ -195,7 +195,7 @@ def logout():
         '',  # empty value
         expires=0,  # expire immediately
         httponly=False,
-        samesite='None',
+        samesite='Lax',
         secure=True
     )
     
