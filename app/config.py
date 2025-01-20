@@ -15,7 +15,9 @@ class Config:
     ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'mov', 'avi'}
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     JWT_TOKEN_LOCATION = ['headers', 'cookies']
-    JWT_COOKIE_SECURE = True if os.environ.get('FLASK_ENV') == 'production' else False  # Set to True in production with HTTPS
+    JWT_COOKIE_SECURE = True  # Always use secure cookies in production
     JWT_COOKIE_CSRF_PROTECT = True
     JWT_CSRF_CHECK_FORM = True
     JWT_CSRF_IN_COOKIES = True
+    JWT_COOKIE_SAMESITE = 'None'  # Important for cross-site cookies
+    # JWT_COOKIE_DOMAIN = '.onrender.com'  # Adjust if needed for your domain
