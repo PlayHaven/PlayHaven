@@ -53,8 +53,8 @@ def register():
             "id": user.id,
             "email": user.email,
             "username": user.username
-        },
-        "csrf_token": get_csrf_token(access_token)
+        }
+        # "csrf_token": get_csrf_token(access_token)
     })
     
     # Set JWT cookie and CSRF token
@@ -63,7 +63,7 @@ def register():
         'csrf_token',
         get_csrf_token(access_token),
         httponly=False,
-        samesite='Lax',
+        samesite='None',
         secure=True
     )
     
@@ -85,8 +85,8 @@ def login():
                 "id": user.id,
                 "email": user.email,
                 "username": user.username
-            },
-            "csrf_token": get_csrf_token(access_token)
+            }
+            # "csrf_token": get_csrf_token(access_token)
         })
         
         # Set JWT cookie and CSRF token
@@ -95,7 +95,7 @@ def login():
             'csrf_token',
             get_csrf_token(access_token),
             httponly=False,  # Frontend needs to read this
-            samesite='Lax',
+            samesite='None',
             secure=True
         )
         
@@ -160,8 +160,8 @@ def verify_token():
             "expires_at": exp_timestamp,
             "user_id": jwt["sub"],
             "username": user.username,
-            "email": user.email,
-            "csrf_token": get_csrf_token(access_token)
+            "email": user.email
+            # "csrf_token": get_csrf_token(access_token)
         })
         
         set_access_cookies(response, access_token)
@@ -169,7 +169,7 @@ def verify_token():
             'csrf_token',
             get_csrf_token(access_token),
             httponly=False,
-            samesite='Lax',
+            samesite='None',
             secure=True
         )
         
@@ -195,7 +195,7 @@ def logout():
         '',  # empty value
         expires=0,  # expire immediately
         httponly=False,
-        samesite='Lax',
+        samesite='None',
         secure=True
     )
     
