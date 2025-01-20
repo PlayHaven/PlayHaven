@@ -61,7 +61,8 @@ def register():
         'csrf_token',
         get_csrf_token(access_token),
         httponly=False,
-        samesite='None'
+        samesite='None',
+        secure=True
     )
     
     return response, 201
@@ -91,7 +92,8 @@ def login():
             'csrf_token',
             get_csrf_token(access_token),
             httponly=False,  # Frontend needs to read this
-            samesite='None'
+            samesite='None',
+            secure=True
         )
         
         return response, 200
@@ -163,7 +165,8 @@ def verify_token():
             'csrf_token',
             get_csrf_token(access_token),
             httponly=False,
-            samesite='None'
+            samesite='None',
+            secure=True
         )
         
         return response, 200
@@ -188,7 +191,8 @@ def logout():
         '',  # empty value
         expires=0,  # expire immediately
         httponly=False,
-        samesite='None'
+        samesite='None',
+        secure=True
     )
     
     return response, 200
