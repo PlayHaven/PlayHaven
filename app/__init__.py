@@ -23,7 +23,9 @@ def create_app(config_class=Config):
              "origins": [
                  "http://localhost:3000",
                  "http://localhost:5001",
-                 "https://playhaven-fe.onrender.com"
+                 "https://playhaven-fe.onrender.com",
+                 "https://www.playhaven.app",
+                 "https://playhaven.app"
              ],
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
              "allow_headers": ["Content-Type", "Authorization", "X-CSRF-TOKEN"],
