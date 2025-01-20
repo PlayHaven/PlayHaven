@@ -17,10 +17,14 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
     
-    # Updated CORS configuration
+    # Configure CORS
     CORS(app, 
          resources={r"/api/*": {
-             "origins": ["http://localhost:3000"],
+             "origins": [
+                 "http://localhost:3000",
+                 "http://localhost:5001",
+                 "https://playhaven-fe.onrender.com"  # Add your Render frontend URL
+             ],
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
              "allow_headers": ["Content-Type", "Authorization", "X-CSRF-TOKEN"],
              "expose_headers": ["Content-Type", "X-CSRF-TOKEN"]
