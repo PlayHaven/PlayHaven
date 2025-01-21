@@ -7,6 +7,7 @@ class ChatRoom(db.Model):
     user_ids = db.Column(db.JSON, nullable=False)  # List of user IDs in the chat room
     last_message = db.Column(db.Text, nullable=True)  # Content of the last message
     last_message_timestamp = db.Column(db.DateTime, nullable=True)  # Timestamp of the last message
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
 class UserChatAssociation(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -138,14 +138,14 @@ def get_my_rooms():
 
     for chat_room in chat_rooms:
         room = ChatRoom.query.get(chat_room.chat_room_id)
-        last_message_time = room.last_message_timestamp
+        last_message_time = room.last_message_timestamp if room.last_message_timestamp else room.created_at
         time_passed = format_time_passed(last_message_time)  # New function to format time passed
         
         results.append({
             "id": room.id,
             "name": room.name if room.is_group else User.query.join(UserChatAssociation).filter(UserChatAssociation.chat_room_id == room.id, UserChatAssociation.user_id != user_id).first().username,
             "is_group": room.is_group,
-            "lastMessage": room.last_message,
+            "lastMessage": room.last_message if room.last_message else "No messages yet",
             "timestamp": time_passed  # Updated to use formatted time passed
         })
 
