@@ -53,8 +53,8 @@ def register():
             "id": user.id,
             "email": user.email,
             "username": user.username
-        }
-        # "csrf_token": get_csrf_token(access_token)
+        },
+        "csrf_token": get_csrf_token(access_token)
     })
     
     # Set JWT cookie and CSRF token
@@ -85,8 +85,8 @@ def login():
                 "id": user.id,
                 "email": user.email,
                 "username": user.username
-            }
-            # "csrf_token": get_csrf_token(access_token)
+            },
+            "csrf_token": get_csrf_token(access_token)
         })
         
         # Set JWT cookie and CSRF token
@@ -160,8 +160,8 @@ def verify_token():
             "expires_at": exp_timestamp,
             "user_id": jwt["sub"],
             "username": user.username,
-            "email": user.email
-            # "csrf_token": get_csrf_token(access_token)
+            "email": user.email,
+            "csrf_token": get_csrf_token(access_token)
         })
         
         set_access_cookies(response, access_token)
