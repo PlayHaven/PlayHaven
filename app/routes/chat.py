@@ -7,6 +7,25 @@ from app.utils.error_handler import handle_route_errors
 
 bp = Blueprint('chat', __name__, url_prefix='/api/chat')
 
+# New helper function to format time passed
+def format_time_passed(timestamp):
+    from datetime import datetime, timedelta
+
+    now = datetime.utcnow()
+    time_diff = now - timestamp
+
+    if time_diff < timedelta(minutes=1):
+        return "just now"
+    elif time_diff < timedelta(hours=1):
+        minutes = int(time_diff.total_seconds() // 60)
+        return f"{minutes} min ago"
+    elif time_diff < timedelta(days=1):
+        hours = int(time_diff.total_seconds() // 3600)
+        return f"{hours} hours ago"
+    else:
+        days = int(time_diff.total_seconds() // 86400)
+        return f"{days} days ago" 
+
 # Route to create a chat room
 @bp.route('/create-room', methods=['POST'])
 @jwt_required()
@@ -119,12 +138,15 @@ def get_my_rooms():
 
     for chat_room in chat_rooms:
         room = ChatRoom.query.get(chat_room.chat_room_id)
+        last_message_time = room.last_message_timestamp
+        time_passed = format_time_passed(last_message_time)  # New function to format time passed
+        
         results.append({
             "id": room.id,
             "name": room.name if room.is_group else User.query.join(UserChatAssociation).filter(UserChatAssociation.chat_room_id == room.id, UserChatAssociation.user_id != user_id).first().username,
             "is_group": room.is_group,
             "lastMessage": room.last_message,
-            "timestamp": room.last_message_timestamp
+            "timestamp": time_passed  # Updated to use formatted time passed
         })
 
     return jsonify({"rooms": results}), 200 
