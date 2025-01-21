@@ -97,6 +97,7 @@ def send_message():
     }
 
     # Emit to all users in the chat room
+    current_app.logger.info(f"Sending message through emitter")
     for user_id in chat_room.user_ids:
         socketio.emit('chat_message', message_data, room=f"user_{user_id}")
 
