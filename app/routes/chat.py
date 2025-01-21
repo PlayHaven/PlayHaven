@@ -71,37 +71,47 @@ def send_message():
     room_id = data.get('room_id')
     content = data.get('content')
 
-    # Create a new chat message
-    chat_message = ChatMessage(room_id=room_id, sender_id=user_id, content=content)
-    db.session.add(chat_message)
-    
-    # Update the last message and timestamp in the chat room
-    ChatMessage.update_last_message(room_id, content)
+    if not room_id or not content:
+        return jsonify({"error": "Room ID and content are required"}), 400
 
-    # Get the sender's username
-    sender = User.query.get(user_id)
-    
-    # Get all users in this chat room
-    chat_room = ChatRoom.query.get(room_id)
-    
-    db.session.commit()
+    try:
+        # Create a new chat message
+        chat_message = ChatMessage(room_id=room_id, sender_id=user_id, content=content)
+        db.session.add(chat_message)
 
-    # Emit the message to all users in the chat room
-    message_data = {
-        "id": int(chat_message.id),
-        "room_id": int(room_id),
-        "sender_id": int(user_id),
-        "sender_name": sender.username,
-        "content": content,
-        "timestamp": chat_message.timestamp.isoformat()
-    }
+        # Update the last message and timestamp in the chat room
+        ChatMessage.update_last_message(room_id, content)
 
-    # Emit to all users in the chat room
-    current_app.logger.info(f"Sending message through emitter")
-    for user_id in chat_room.user_ids:
-        socketio.emit('chat_message', message_data, room=f"user_{user_id}")
+        # Get the sender's username
+        sender = User.query.get(user_id)
 
-    return jsonify({"message_id": chat_message.id}), 201
+        # Get all users in this chat room
+        chat_room = ChatRoom.query.get(room_id)
+
+        db.session.commit()
+
+        # Emit the message to all users in the chat room
+        message_data = {
+            "id": int(chat_message.id),
+            "room_id": int(room_id),
+            "sender_id": int(user_id),
+            "sender_name": sender.username,
+            "content": content,
+            "timestamp": chat_message.timestamp.isoformat()
+        }
+
+        # Emit to all users in the chat room
+        current_app.logger.info(f"Sending message through emitter")
+        for user_id in chat_room.user_ids:
+            current_app.logger.info(f"Sending message to user {user_id}")
+            socketio.emit('chat_message', message_data, room=f"user_{user_id}")
+
+        return jsonify({"message_id": chat_message.id}), 201
+
+    except Exception as e:
+        db.session.rollback()  # Rollback the session in case of error
+        current_app.logger.error(f"Error sending message: {str(e)}")
+        return jsonify({"error": "Failed to send message"}), 500
 
 # Route to view chat messages
 @bp.route('/messages/<int:room_id>', methods=['GET'])
