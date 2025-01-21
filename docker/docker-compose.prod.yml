@@ -34,14 +34,17 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     ports:
-      - "5001:5000"
+      - "10000:10000"
     volumes:
       - ../:/app
+    env_file:
+      - ../.env.prod
     environment:
       - FLASK_APP=run.py
       - FLASK_DEBUG=1
       - FLASK_ENV=production
-      - DATABASE_URL=postgresql://avnadmin:AVNS_BIHToI_EcSZ2YsJkKWP@playhaven-zamieabdullah0.h.aivencloud.com:14018/defaultdb?sslmode=require
+      - PYTHONUNBUFFERED=1
+      - WEB_CONCURRENCY=1
     depends_on:
       - db
 
@@ -49,12 +52,10 @@ services:
     image: postgres:15
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER=avnadmin
-      - POSTGRES_PASSWORD=AVNS_BIHToI_EcSZ2YsJkKWP
-      - POSTGRES_DB=defaultdb
+    env_file:
+      - ../.env.prod
     ports:
-      - "14018:5432"
+      - "5432:5432"
 
 volumes:
   postgres_data: 
