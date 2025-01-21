@@ -41,12 +41,12 @@ ENV PYTHONUNBUFFERED=1
 RUN mkdir -p uploads && chmod 777 uploads
 
 # Expose port
-EXPOSE 10000
+EXPOSE 5001
 
 # Start Gunicorn
 CMD gunicorn --worker-class eventlet \
     --workers 4 \
-    --bind 0.0.0.0:10000 \
+    --bind 0.0.0.0:5000 \
     --timeout 120 \
     --access-logfile - \
     --error-logfile - \
