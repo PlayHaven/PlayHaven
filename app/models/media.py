@@ -8,6 +8,7 @@ class Media(db.Model):
     file_path = db.Column(db.String(255))
     storage_type = db.Column(db.String(20))
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
+    data = db.Column(db.LargeBinary)  # New field to store image data
     
     user = db.relationship("User", back_populates="media")
     # Add relationship to comments
