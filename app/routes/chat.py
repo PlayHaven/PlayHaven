@@ -25,6 +25,19 @@ def format_time_passed(timestamp):
     else:
         days = int(time_diff.total_seconds() // 86400)
         return f"{days} days ago" 
+    
+# SocketIO event handlers for chat
+@socketio.on('typing')
+def handle_typing(data):
+    current_app.logger.info(f"Typing event received: {data}")
+    user_id = data.get('user_id')
+    room_id = data.get('room_id')
+    participants = data.get('participants')
+
+    for participant in participants:
+        current_app.logger.info(f"Emitting typing event to user {participant}")
+        socketio.emit('user_typing', {'username': participant['username'], 'room_id': room_id},
+                       room=f"user_{participant['id']}")
 
 # Route to create a chat room
 @bp.route('/create-room', methods=['POST'])
@@ -216,4 +229,39 @@ def mark_all_read(room_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error marking messages as read: {str(e)}")
-        return jsonify({"error": "Failed to mark messages as read."}), 500 
+        return jsonify({"error": "Failed to mark messages as read."}), 500
+
+@bp.route('/participants/<int:room_id>', methods=['GET'])
+@jwt_required()
+def get_chat_room_participants(room_id):
+    user_id = get_jwt_identity()
+    
+    # Check if the user is part of the chat room
+    user_association = UserChatAssociation.query.filter_by(
+        chat_room_id=room_id,
+        user_id=user_id
+    ).first()
+    
+    if not user_association:
+        return jsonify({"error": "User is not a participant of this chat room."}), 403
+    
+    # Query the UserChatAssociation to get participants of the chat room excluding the current user
+    participants = UserChatAssociation.query.filter(
+        UserChatAssociation.chat_room_id == room_id,
+        UserChatAssociation.user_id != user_id
+    ).all()
+    
+    # Extract user IDs and usernames
+    participant_info = []
+    for participant in participants:
+        user = User.query.get(participant.user_id)
+        if user:
+            participant_info.append({
+                "id": user.id,
+                "username": user.username
+            })
+    
+    return jsonify({
+        "current_user_id": user_id,
+        "participants": participant_info
+    }), 200 
