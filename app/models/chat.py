@@ -13,6 +13,10 @@ class UserChatAssociation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     chat_room_id = db.Column(db.Integer, db.ForeignKey('chat_room.id'), nullable=False)
+    last_read_at = db.Column(db.DateTime, nullable=True)  # New field
+    
+    user = db.relationship('User', backref='chat_associations')
+    chat_room = db.relationship('ChatRoom', backref='user_associations')
 
 class ChatMessage(db.Model):
     id = db.Column(db.Integer, primary_key=True)

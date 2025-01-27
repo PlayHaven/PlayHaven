@@ -67,7 +67,7 @@ def create_chat_room():
 def send_message():
     user_id = get_jwt_identity()
     data = request.json
-
+    
     room_id = data.get('room_id')
     content = data.get('content')
 
@@ -79,13 +79,18 @@ def send_message():
         chat_message = ChatMessage(room_id=room_id, sender_id=user_id, content=content)
         db.session.add(chat_message)
 
+        # Update sender's last_read_at
+        user_assoc = UserChatAssociation.query.filter_by(
+            user_id=user_id,
+            chat_room_id=room_id
+        ).first()
+        user_assoc.last_read_at = db.func.current_timestamp()
+
         # Update the last message and timestamp in the chat room
         ChatMessage.update_last_message(room_id, content)
 
-        # Get the sender's username
+        # Get the sender's username and chat room
         sender = User.query.get(user_id)
-
-        # Get all users in this chat room
         chat_room = ChatRoom.query.get(room_id)
 
         db.session.commit()
@@ -101,15 +106,13 @@ def send_message():
         }
 
         # Emit to all users in the chat room
-        current_app.logger.info(f"Sending message through emitter")
-        for user_id in chat_room.user_ids:
-            current_app.logger.info(f"Sending message to user {user_id}")
-            socketio.emit('chat_message', message_data, room=f"user_{user_id}")
+        for room_user_id in chat_room.user_ids:
+            socketio.emit('chat_message', message_data, room=f"user_{room_user_id}")
 
         return jsonify({"message_id": chat_message.id}), 201
 
     except Exception as e:
-        db.session.rollback()  # Rollback the session in case of error
+        db.session.rollback()
         current_app.logger.error(f"Error sending message: {str(e)}")
         return jsonify({"error": "Failed to send message"}), 500
 
@@ -118,6 +121,15 @@ def send_message():
 @jwt_required()
 def get_messages(room_id):
     user_id = get_jwt_identity()
+    
+    # Mark messages as read when fetching them
+    user_assoc = UserChatAssociation.query.filter_by(
+        user_id=user_id,
+        chat_room_id=room_id
+    ).first()
+    user_assoc.last_read_at = db.func.current_timestamp()
+    db.session.commit()
+    
     messages = ChatMessage.query.filter_by(room_id=room_id).order_by(ChatMessage.timestamp.asc()).all()
     room = ChatRoom.query.get(room_id)
 
@@ -129,12 +141,15 @@ def get_messages(room_id):
         "timestamp": message.timestamp
     } for message in messages]
 
-    room_name = room.name if room.is_group else User.query.join(UserChatAssociation).filter(UserChatAssociation.chat_room_id == room.id, UserChatAssociation.user_id != user_id).first().username
+    room_name = room.name if room.is_group else User.query.join(UserChatAssociation).filter(
+        UserChatAssociation.chat_room_id == room.id,
+        UserChatAssociation.user_id != user_id
+    ).first().username
 
     return jsonify({
         "room_name": room_name,
         "messages": room_messages
-    }), 200 
+    }), 200
 
 # Route to retrieve all chat rooms for the current user
 @bp.route('/my-rooms', methods=['GET'])
@@ -142,22 +157,63 @@ def get_messages(room_id):
 def get_my_rooms():
     user_id = get_jwt_identity()
     
-    # Query for chat rooms that include the current user
-    chat_rooms = UserChatAssociation.query.filter_by(user_id=user_id).all()
-    current_app.logger.info(f"Chat rooms: {chat_rooms}")
+    # Get all chat rooms for the current user, ordered by last message timestamp
+    chat_associations = (UserChatAssociation.query
+        .join(ChatRoom)
+        .filter(UserChatAssociation.user_id == user_id)
+        .order_by(ChatRoom.last_message_timestamp.desc().nullslast())  # nullslast() puts rooms with no messages at the end
+        .all())
+    
     results = []
 
-    for chat_room in chat_rooms:
-        room = ChatRoom.query.get(chat_room.chat_room_id)
+    for assoc in chat_associations:
+        room = assoc.chat_room
         last_message_time = room.last_message_timestamp if room.last_message_timestamp else room.created_at
-        time_passed = format_time_passed(last_message_time)  # New function to format time passed
+        time_passed = format_time_passed(last_message_time)
+
+        # Count unread messages
+        unread_count = ChatMessage.query.filter(
+            ChatMessage.room_id == room.id,
+            ChatMessage.timestamp > (assoc.last_read_at or room.created_at)
+        ).count()
         
         results.append({
             "id": room.id,
-            "name": room.name if room.is_group else User.query.join(UserChatAssociation).filter(UserChatAssociation.chat_room_id == room.id, UserChatAssociation.user_id != user_id).first().username,
+            "name": room.name if room.is_group else User.query.join(UserChatAssociation).filter(
+                UserChatAssociation.chat_room_id == room.id,
+                UserChatAssociation.user_id != user_id
+            ).first().username,
             "is_group": room.is_group,
             "lastMessage": room.last_message if room.last_message else "No messages yet",
-            "timestamp": time_passed  # Updated to use formatted time passed
+            "timestamp": time_passed,
+            "unread_count": unread_count
         })
 
-    return jsonify({"rooms": results}), 200 
+    return jsonify({"rooms": results}), 200
+
+@bp.route('/mark-all-read/<int:room_id>', methods=['POST'])
+@jwt_required()
+def mark_all_read(room_id):
+    user_id = get_jwt_identity()
+    
+    # Find the user's association with the chat room
+    user_assoc = UserChatAssociation.query.filter_by(
+        user_id=user_id,
+        chat_room_id=room_id
+    ).first()
+
+    if not user_assoc:
+        return jsonify({"error": "User is not part of this chat room."}), 404
+
+    # Update the last_read_at timestamp to the current time
+    user_assoc.last_read_at = db.func.current_timestamp()
+    
+    socketio.emit('mark_all_read', room=f"user_{user_id}")
+    
+    try:
+        db.session.commit()
+        return jsonify({"message": "All messages marked as read."}), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error marking messages as read: {str(e)}")
+        return jsonify({"error": "Failed to mark messages as read."}), 500 
